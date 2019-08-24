@@ -10,7 +10,7 @@ const routes = new Router();
 routes.post('/users', UserController.store);
 routes.post('/sessions', SessionController.store);
 
-routes.use(authMiddleware); // Somente com autenticação
+routes.use(authMiddleware); // Abaixo Somente com autenticação
 
 routes.put('/users', UserController.update);
 
