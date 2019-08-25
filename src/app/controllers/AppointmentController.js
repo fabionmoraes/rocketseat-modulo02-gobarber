@@ -1,8 +1,11 @@
 import * as Yup from 'yup';
-import { startOfHour, parseISO, isBefore } from 'date-fns';
+import { startOfHour, parseISO, isBefore, format, subHours } from 'date-fns';
+import pt from 'date-fns/locale/pt';
+
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 import File from '../models/File';
+import Notification from '../schemas/Notifications';
 
 class AppointmentController {
   async index(req, res) {
@@ -56,8 +59,17 @@ class AppointmentController {
     if (!isProvider) {
       return res
         .status(400)
-        .json({ error: 'Você não é permitido para criar provider.' });
+        .json({ error: 'O Provider selecionado não tem permissão' });
     }
+
+    // Check se o usuário conectado vai criar provider pra ele mesmo
+
+    if (isProvider.id === req.userID) {
+      return res.status(400).json({
+        error: 'não é permitido para criar provider para você mesmo.',
+      });
+    }
+
     // Verifica se a data é atual
     const hourStart = startOfHour(parseISO(data));
 
@@ -84,6 +96,42 @@ class AppointmentController {
       provider_id,
       data,
     });
+
+    /**
+     * Notificar o prestador de serviço
+     */
+
+    const user = await User.findByPk(req.userID);
+    const formatarData = format(hourStart, "'dia' dd 'de' MMMM', às' H:mm'h'", {
+      locale: pt,
+    });
+
+    await Notification.create({
+      content: `Novo agendamento de ${user.name} no ${formatarData}`,
+      user: provider_id,
+    });
+
+    return res.json(appointment);
+  }
+
+  async delete(req, res) {
+    const appointment = await Appointment.findByPk(req.params.id);
+
+    if (appointment.user_id !== req.userID) {
+      return res.status(401).json({ error: 'Você não é permitido cancelar' });
+    }
+
+    const HoraMenos = await subHours(appointment.data, 2);
+
+    if (isBefore(HoraMenos, new Date())) {
+      return res
+        .status(401)
+        .json({ error: 'Seu limite para cancelamento é de menos de 2h.' });
+    }
+
+    appointment.canceled_at = new Date();
+
+    await appointment.save();
 
     return res.json(appointment);
   }
