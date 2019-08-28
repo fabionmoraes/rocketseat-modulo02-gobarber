@@ -19,7 +19,7 @@ class AppointmentController {
         user_id: req.userID,
         canceled_at: null,
       },
-      attributes: ['id', 'data'],
+      attributes: ['id', 'data', 'past', 'cancelable'],
       order: ['data'],
       limit: 20, // Limite de paginação com offset
       offset: (page - 1) * 20,
